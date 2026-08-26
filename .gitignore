@@ -1,0 +1,6 @@
+# Claude Code のローカル設定（PCごとの設定なので共有しない）
+.claude/settings.local.json
+
+# OSが自動生成するファイル
+Thumbs.db
+.DS_Store
