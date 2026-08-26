@@ -1,4 +1,3 @@
-README
 # TaskManagement
 
 RaiseTech AIエンジニアコースの学習用リポジトリです。
