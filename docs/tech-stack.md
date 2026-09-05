@@ -40,7 +40,7 @@
 | 条件 | 満たし方 |
 |---|---|
 | フロントエンド / バックエンド / データベースの3層構成を取れること | React（ブラウザ）→ Spring Boot（API）→ PostgreSQL。[データ設計書 1章](./data-design.md) の構成図と一致する |
-| ブラウザから呼び出せる Web API を提供できること | Spring Boot の Web 機能（`spring-boot-starter-web`）で REST API を提供する |
+| ブラウザから呼び出せる Web API を提供できること | Spring Boot の Web 機能（`spring-boot-starter-webmvc`）で REST API を提供する |
 | ドラッグ＆ドロップを無理なく実装できること | React にはドラッグ＆ドロップ用のライブラリが複数あり、選択肢が確保できる |
 | 学習目的として、内容を追いやすい構成であること | 下記 3章 |
 
