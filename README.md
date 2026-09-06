@@ -25,6 +25,19 @@ cd backend
 
 停止するときは `bootRun` を Ctrl+C で止めてから `docker compose down`。データを消すなら `docker compose down -v`。
 
+## API の動作確認
+
+起動後、別のターミナルから叩く。**PowerShell では `curl` ではなく `curl.exe` と書く**（`curl` は `Invoke-WebRequest` の別名になっていて、`-s` などのオプションが通らない）。
+
+```powershell
+curl.exe -s http://localhost:8080/api/tasks                  # 全件
+curl.exe -s http://localhost:8080/api/tasks/2                # 1件
+curl.exe -s http://localhost:8080/api/tasks/status/todo      # status で絞り込み
+curl.exe -s -o NUL -w "%{http_code}`n" http://localhost:8080/api/tasks/9999   # 404
+```
+
+テストデータ6件は `backend/src/main/resources/data.sql` から起動時に自動投入される。仕様は [API設計書](./docs/api-design.md) を参照。
+
 ## 設計文書
 
-`docs/` 配下。[要件定義書](./docs/requirements.md) が本体で、そこから機能要件・画面設計・データ設計・技術スタックに分かれています。
+`docs/` 配下。[要件定義書](./docs/requirements.md) が本体で、そこから機能要件・画面設計・データ設計・API設計・技術スタックに分かれています。

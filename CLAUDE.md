@@ -66,6 +66,11 @@ Windows では起動中の Gradle がファイルを掴んでいるため、`boo
 JPA が入っているためテストがデータベース接続を要求する。DB が起動していないとテストが落ちる。
 Testcontainers も H2 も使わず、この運用ルールで対応している（理由は `docs/tech-stack.md`）。
 
+**さらに、`gradlew test` は `tasks` テーブルの中身を入れ替える。** テストは本番と同じ
+`task_management` データベースに繋ぎ、同じ `application.properties` を読むため、
+`spring.sql.init.mode=always` が効いて `data.sql`（`DELETE` → `INSERT`）が丸ごと走る。
+API で自分のタスクを作れるようになったら、テストの前に必要なデータを退避すること。
+
 ### 破壊的なコマンドは禁止済み
 
 `rm` / `git reset --hard` / `git clean` / `git push --force` などは `.claude/settings.json` の
