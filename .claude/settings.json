@@ -12,7 +12,9 @@
       "Bash(git branch *)",
       "Bash(git stash *)",
       "Bash(gh pr *)",
+      "Bash(gh issue *)",
       "Bash(gh repo view *)",
+      "Bash(gh repo edit *)",
       "Bash(gh auth status *)",
       "PowerShell(git add *)",
       "PowerShell(git commit *)",
@@ -25,7 +27,9 @@
       "PowerShell(git branch *)",
       "PowerShell(git stash *)",
       "PowerShell(gh pr *)",
+      "PowerShell(gh issue *)",
       "PowerShell(gh repo view *)",
+      "PowerShell(gh repo edit *)",
       "PowerShell(gh auth status *)"
     ],
     "deny": [
