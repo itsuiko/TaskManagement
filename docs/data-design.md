@@ -6,8 +6,8 @@
 
 | 項目 | 内容 |
 |---|---|
-| 最終更新日 | 2026-09-03 |
-| 版 | 3.0 |
+| 最終更新日 | 2026-09-06 |
+| 版 | 3.1 |
 
 ---
 
@@ -37,8 +37,8 @@ erDiagram
         varchar priority "優先度 high/medium/low"
         varchar status "状態 todo/doing/done"
         int sort_order "同じ状態の中での並び順"
-        datetime created_at "作成日時"
-        datetime updated_at "最終更新日時"
+        timestamp created_at "作成日時"
+        timestamp updated_at "最終更新日時"
     }
 ```
 
@@ -59,10 +59,14 @@ erDiagram
 | priority | varchar(10) | 可 | NULL | `high` / `medium` / `low` |
 | status | varchar(10) | 不可 | `todo` | `todo` / `doing` / `done` |
 | sort_order | int | 不可 | ― | 同じ status の中での並び順 |
-| created_at | datetime | 不可 | 現在時刻 | 作成日時 |
-| updated_at | datetime | 不可 | 現在時刻 | 最終更新日時 |
+| created_at | timestamp(6) | 不可 | 現在時刻 | 作成日時 |
+| updated_at | timestamp(6) | 不可 | 現在時刻 | 最終更新日時 |
 
 `status` と `sort_order` の組み合わせで、ボード上のカードの位置が決まる。
+
+**版3.1での修正（2026-09-06）**：版3.0では作成日時・最終更新日時の型を `datetime` と書いていたが、**PostgreSQL に `datetime` という型は存在しない**。実際に生成されたのは `timestamp(6) without time zone` だった。この表は上記の実物（`\d tasks` の出力）と一致している。
+
+**既定値の与え方**：`status` の `todo`、作成日時・最終更新日時の現在時刻は、**DB の DEFAULT 制約ではなくアプリ側（エンティティ）で与えている**。値を入れる経路がバックエンドの API ひとつに限られるため、DB 側に二重で持たせても働く場面がない。`psql` から直接 INSERT する場合はこれらの既定値が効かないので、明示的に値を渡す必要がある。
 
 ## 4. status の値と表示名
 
