@@ -1,0 +1,6 @@
+/*
+  Tailwind CSS 4 系の読み込み方。
+  3 系までの `@tailwind base;` `@tailwind components;` `@tailwind utilities;` と
+  `tailwind.config.js` は使わない。設定は @tailwindcss/vite プラグインが担う。
+*/
+@import 'tailwindcss';
