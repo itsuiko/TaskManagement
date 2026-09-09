@@ -53,13 +53,61 @@ git switch main && git pull && git fetch --prune
 
 ## このリポジトリ固有の注意
 
-### マージの前に bootRun を停止する
+### サーバーの起動と停止は、Claude ではなく開発者が行う
+
+**Claude はサーバーを起動しない。** 起動が必要なときは、打つコマンドを提示して開発者に渡す。
+
+理由は、**Claude 側に停止する手段が無いことが実測で確認されているため**。
+
+| 対象 | Claude の停止機能（TaskStop）の報告 | 実際に起きたこと |
+|---|---|---|
+| `gradlew bootRun` | Successfully stopped | **java が3本とも生存**（`java → java → java` の親子構造）。8080 は解放されず `curl` は HTTP 200 を返し続けた |
+| `npm run dev` | Successfully stopped | **node が 5173 を掴んだまま生存** |
+
+どちらも親プロセスだけが止まり、**ポートを掴んでいる子プロセスが残る**。停止に必要な
+`Stop-Process` / `taskkill` は deny リストにあり、回避もしない。
+
+**開発者が自分のターミナルで起動し、`Ctrl+C` で止める。**
+
+```powershell
+docker compose up -d --wait          # PostgreSQL（Claude が実行してよい）
+cd backend;  ./gradlew bootRun       # 8080 — 開発者が実行し Ctrl+C で止める
+cd frontend; npm run dev             # 5173 — 開発者が実行し Ctrl+C で止める
+```
+
+停止し忘れてポートが埋まっている場合、開発者が **PowerShell** でこれを打つ。
+
+```powershell
+Stop-Process -Id (Get-NetTCPConnection -LocalPort 8080 -State Listen).OwningProcess
+```
+
+**Git Bash では動かない**（`Get-NetTCPConnection` は PowerShell のコマンド）。ポート番号を
+5173 に変えればフロントにも使える。
+
+### ポートは 8080 / 5173 で固定する。別のポートに逃がさない
+
+**空いている別のポートで一時的に起動する、という回避をしない。** 古いサーバーが元のポートに
+残ったまま新しいものが別ポートで動くと、「動いているのに変更が反映されない」状態になり、
+原因の切り分けが難しくなる。
+
+道具の側で既に強制してある。
+
+- **フロント**：`frontend/vite.config.ts` の `server.strictPort: true`。5173 が埋まっていたら**起動を失敗させる**
+- **バックエンド**：Spring Boot は 8080 が埋まっていると既定で起動に失敗する
+
+**ポートが埋まっていたら、逃げずに掴んでいるプロセスを止める。**
+
+### マージの前に bootRun と npm run dev を停止する
 
 Windows では起動中の Gradle がファイルを掴んでいるため、`bootRun` を動かしたままブランチを
 切り替えると `gradle-wrapper.jar` が削除できずに未追跡ファイルとして取り残され、
 次の `git pull` が "untracked working tree files would be overwritten" で止まる。
 
-**`gh pr merge` の前に Ctrl+C で停止する。**
+**`gh pr merge` の前に、両方を `Ctrl+C` で停止する。** サーバーが2つになったので、
+止め忘れる機会も2つある。
+
+Gradle のデーモンが残っている場合は `cd backend && ./gradlew --stop` で止められる
+（これは deny 対象外の正規の停止コマンドなので Claude が実行してよい）。
 
 ### gradlew test の前に docker compose up -d
 
@@ -80,16 +128,19 @@ deny リストに入れてある。回避しない。ファイルを消したい
 
 | パス | 内容 |
 |---|---|
-| `docs/` | 設計文書。[`requirements.md`](docs/requirements.md) が本体で、そこから機能要件・画面設計・データ設計・技術スタックに分かれる |
+| `docs/` | 設計文書。[`requirements.md`](docs/requirements.md) が本体で、そこから機能要件・画面設計・データ設計・API設計・技術スタックに分かれる（6文書） |
 | `backend/` | Spring Boot 4.1.1 / Java 25 (Temurin) / Gradle (Groovy DSL) |
+| `frontend/` | React 19 / TypeScript / Vite / Tailwind CSS 4。**表示のみ**（作成・編集・削除・D&D は未実装） |
 | `compose.yaml` | PostgreSQL 18 のコンテナ定義。ホストの `127.0.0.1:5432` に公開 |
 | `prototype/index.html` | 第07回のプロトタイプ。HTML/CSS/JS 1ファイル、保存機能なし |
+
+`backend/` と `frontend/` を同じリポジトリに置く構成を**モノレポ**という。両者は互いに
+依存しないが、1つの機能を作るときは同時に触るため、判断材料を1か所に集めている。
 
 **仕様の話はチャットの履歴ではなく `docs/` を読むこと。**
 
 ## 起動
 
-```
-docker compose up -d --wait     # PostgreSQL 18
-cd backend && ./gradlew bootRun # http://localhost:8080
-```
+手順は `.claude/skills/run-app/SKILL.md` にある（`/run-app` で呼べる）。**同じ内容を Skill にも
+置いてあるのは、CLAUDE.md が長くなるほど個々のルールが読み飛ばされやすくなるため。**
+起動・停止は事故が起きやすいので、必要な場面でだけ読み込まれる形にも複製してある。
