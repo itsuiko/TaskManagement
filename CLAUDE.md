@@ -53,29 +53,31 @@ git switch main && git pull && git fetch --prune
 
 ## このリポジトリ固有の注意
 
-### サーバーの起動と停止は、Claude ではなく開発者が行う
+### サーバーの起動と停止は Claude が行う
 
-**Claude はサーバーを起動しない。** 起動が必要なときは、打つコマンドを提示して開発者に渡す。
+**`gradlew bootRun` と `npm run dev` は Claude が起動し、Claude が止める。**
 
-理由は、**Claude 側に停止する手段が無いことが実測で確認されているため**。
+```powershell
+docker compose up -d --wait          # PostgreSQL
+cd backend;  ./gradlew bootRun       # 8080
+cd frontend; npm run dev             # 5173
+```
+
+第11回に「開発者が自分のターミナルで起動する」と決めたが、第12回に実際に運用してみて
+講義と同じ形に戻した（Issue #22）。**開発者にターミナルを打たせない。**
+
+#### ⚠️ TaskStop では止まらない
+
+**「止める手段が無い」という第11回の実測は取り消されていない。** 変わったのは、
+ポートを掴んでいるプロセスを直接止める手段（`Stop-Process`）を Claude に渡したこと。
 
 | 対象 | Claude の停止機能（TaskStop）の報告 | 実際に起きたこと |
 |---|---|---|
 | `gradlew bootRun` | Successfully stopped | **java が3本とも生存**（`java → java → java` の親子構造）。8080 は解放されず `curl` は HTTP 200 を返し続けた |
 | `npm run dev` | Successfully stopped | **node が 5173 を掴んだまま生存** |
 
-どちらも親プロセスだけが止まり、**ポートを掴んでいる子プロセスが残る**。停止に必要な
-`Stop-Process` / `taskkill` は deny リストにあり、回避もしない。
-
-**開発者が自分のターミナルで起動し、`Ctrl+C` で止める。**
-
-```powershell
-docker compose up -d --wait          # PostgreSQL（Claude が実行してよい）
-cd backend;  ./gradlew bootRun       # 8080 — 開発者が実行し Ctrl+C で止める
-cd frontend; npm run dev             # 5173 — 開発者が実行し Ctrl+C で止める
-```
-
-停止し忘れてポートが埋まっている場合、開発者が **PowerShell** でこれを打つ。
+どちらも親プロセスだけが止まり、**ポートを掴んでいる子プロセスが残る**。
+`TaskStop` の「Successfully stopped」を信用しない。**止めるときはこれを使う。**
 
 ```powershell
 Stop-Process -Id (Get-NetTCPConnection -LocalPort 8080 -State Listen).OwningProcess
@@ -83,6 +85,14 @@ Stop-Process -Id (Get-NetTCPConnection -LocalPort 8080 -State Listen).OwningProc
 
 **Git Bash では動かない**（`Get-NetTCPConnection` は PowerShell のコマンド）。ポート番号を
 5173 に変えればフロントにも使える。
+
+**止めたと報告する前に、ポートが解放されたことを確認する。**
+
+```powershell
+Get-NetTCPConnection -LocalPort 8080 -State Listen
+```
+
+`taskkill` は deny に残してある。停止手段は1つで足りる。
 
 ### ポートは 8080 / 5173 で固定する。別のポートに逃がさない
 
@@ -103,8 +113,8 @@ Windows では起動中の Gradle がファイルを掴んでいるため、`boo
 切り替えると `gradle-wrapper.jar` が削除できずに未追跡ファイルとして取り残され、
 次の `git pull` が "untracked working tree files would be overwritten" で止まる。
 
-**`gh pr merge` の前に、両方を `Ctrl+C` で停止する。** サーバーが2つになったので、
-止め忘れる機会も2つある。
+**`gh pr merge` の前に、8080 と 5173 の両方が解放されていることを確認する。**
+サーバーが2つになったので、止め忘れる機会も2つある。
 
 Gradle のデーモンが残っている場合は `cd backend && ./gradlew --stop` で止められる
 （これは deny 対象外の正規の停止コマンドなので Claude が実行してよい）。
