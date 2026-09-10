@@ -114,10 +114,14 @@ Gradle のデーモンが残っている場合は `cd backend && ./gradlew --sto
 JPA が入っているためテストがデータベース接続を要求する。DB が起動していないとテストが落ちる。
 Testcontainers も H2 も使わず、この運用ルールで対応している（理由は `docs/tech-stack.md`）。
 
-**さらに、`gradlew test` は `tasks` テーブルの中身を入れ替える。** テストは本番と同じ
-`task_management` データベースに繋ぎ、同じ `application.properties` を読むため、
-`spring.sql.init.mode=always` が効いて `data.sql`（`DELETE` → `INSERT`）が丸ごと走る。
-API で自分のタスクを作れるようになったら、テストの前に必要なデータを退避すること。
+**テストが `tasks` の中身を入れ替える問題は解決済み**（第12回）。`src/test/resources/application-test.properties`
+に `spring.sql.init.mode=never` を置き、テストクラスに `@ActiveProfiles("test")` を付けてある。
+**登録したタスクは `gradlew test` を実行しても消えない。**
+
+テスト用の設定を足すときは、**`application.properties` という同じ名前で `src/test/resources` に
+置かないこと。** クラスパスは test 側が先に来るため、main 側が丸ごと読まれなくなり、
+データベースの接続先まで書き写すことになる。プロファイル名を付けた
+`application-test.properties` は上書きとして働く（理由は `docs/api-design.md` 7章）。
 
 ### 破壊的なコマンドは禁止済み
 

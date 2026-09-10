@@ -1,6 +1,7 @@
 package com.taskmanagement;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -25,4 +26,13 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
 	/** 指定した status のものだけを sort_order の昇順で返す。 */
 	List<Task> findByStatusOrderBySortOrderAsc(String status);
+
+	/**
+	 * 指定した status の中で sort_order がいちばん大きい1件。
+	 * 新しく作るカードを列の末尾に置くための採番に使う（TaskService）。
+	 *
+	 * First は「並べ替えた結果の先頭1件」の意味。Desc で降順に並べているので、
+	 * 先頭 = 最大値になる。その列にまだ1件も無ければ空で返る。
+	 */
+	Optional<Task> findFirstByStatusOrderBySortOrderDesc(String status);
 }
