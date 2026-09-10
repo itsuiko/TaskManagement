@@ -144,7 +144,7 @@ deny リストに入れてある。回避しない。ファイルを消したい
 |---|---|
 | `docs/` | 設計文書。[`requirements.md`](docs/requirements.md) が本体で、そこから機能要件・画面設計・データ設計・API設計・技術スタックに分かれる（6文書） |
 | `backend/` | Spring Boot 4.1.1 / Java 25 (Temurin) / Gradle (Groovy DSL) |
-| `frontend/` | React 19 / TypeScript / Vite / Tailwind CSS 4。**表示のみ**（作成・編集・削除・D&D は未実装） |
+| `frontend/` | React 19 / TypeScript / Vite / Tailwind CSS 4。**表示と新規作成**（編集・削除・D&D は未実装） |
 | `compose.yaml` | PostgreSQL 18 のコンテナ定義。ホストの `127.0.0.1:5432` に公開 |
 | `prototype/index.html` | 第07回のプロトタイプ。HTML/CSS/JS 1ファイル、保存機能なし |
 
