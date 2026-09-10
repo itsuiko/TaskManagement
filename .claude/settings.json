@@ -60,7 +60,6 @@
       "PowerShell(git push * -f)",
       "PowerShell(Stop-Computer *)",
       "PowerShell(Restart-Computer *)",
-      "PowerShell(Stop-Process *)",
       "PowerShell(shutdown *)",
       "PowerShell(taskkill *)"
     ]
