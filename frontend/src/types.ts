@@ -37,3 +37,21 @@ export const PRIORITY_LABELS: Record<Priority, string> = {
   medium: '中',
   low: '低',
 }
+
+/**
+ * `POST /api/tasks` に送る内容（docs/api-design.md 2.4）。
+ *
+ * バックエンドの `TaskCreateRequest` と対になる形で、**Task から項目を削っただけの型にしない**。
+ * `id` / `createdAt` / `updatedAt` / `sortOrder` はサーバーが決めるので送る先が無い。
+ * ここに無い値を送っても、受け取る側に入り口が無い。
+ *
+ * 未入力は `null` で送る。空文字で送ると「空文字が入力された」ことになり、
+ * 「入力されなかった」と区別がつかない。
+ */
+export type TaskCreateInput = {
+  title: string
+  description: string | null
+  dueDate: string | null
+  priority: Priority | null
+  status: Status
+}

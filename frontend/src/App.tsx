@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { fetchTasks } from './api'
 import { Column } from './components/Column'
-import { COLUMNS, type Task } from './types'
+import { TaskCreateModal } from './components/TaskCreateModal'
+import { COLUMNS, type Status, type Task } from './types'
 
 /**
  * 読み込みの状態。
@@ -17,6 +18,14 @@ type LoadState =
 
 export default function App() {
   const [state, setState] = useState<LoadState>({ phase: 'loading' })
+
+  /**
+   * 作成モーダルを開いている列。`null` なら閉じている。
+   *
+   * 「開いているか」と「どの列か」を別々に持たない。真偽値と列を分けて持つと、
+   * 「開いているのに列が決まっていない」状態を型の上で作れてしまう。
+   */
+  const [addingTo, setAddingTo] = useState<Status | null>(null)
 
   useEffect(() => {
     // 開発中は React が useEffect を 2 回実行する（StrictMode）。
@@ -37,6 +46,27 @@ export default function App() {
       cancelled = true
     }
   }, [])
+
+  /**
+   * 一覧を取り直す。登録したあとに呼ぶ。
+   *
+   * 返ってきた 1 件を手元の配列に足す方法もあるが、取り直す方を選んだ。
+   * サーバーが決めた並び順をそのまま受け取れるので、画面側に「末尾に足す」処理を
+   * 持たずに済む（同じ判断を 2 か所に書かない）。
+   *
+   * **`phase` を `loading` に戻さない。** 戻すと保存のたびに 3 列が消えて
+   * 「読み込み中…」が一瞬出る。取得できるまで今の内容を残しておく。
+   */
+  async function reload() {
+    try {
+      const tasks = await fetchTasks()
+      setState({ phase: 'loaded', tasks })
+    } catch (error: unknown) {
+      // 登録そのものは成功している。それが伝わらないと、もう一度登録して重複させてしまう。
+      const message = error instanceof Error ? error.message : String(error)
+      setState({ phase: 'failed', message: `登録は完了しましたが、一覧を取得できませんでした。${message}` })
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -71,11 +101,25 @@ export default function App() {
                 key={status}
                 label={label}
                 tasks={state.tasks.filter((task) => task.status === status)}
+                onAddClick={() => setAddingTo(status)}
               />
             ))}
           </div>
         )}
       </main>
+
+      {/*
+        開いている間だけ描画する。閉じるとコンポーネントごと消えるので、
+        入力内容を消す処理を書かなくても次に開いたときは空になる。
+      */}
+      {addingTo && (
+        <TaskCreateModal
+          status={addingTo}
+          columnLabel={COLUMNS.find((c) => c.status === addingTo)!.label}
+          onCreated={reload}
+          onClose={() => setAddingTo(null)}
+        />
+      )}
     </div>
   )
 }

@@ -8,7 +8,15 @@ import { TaskCard } from './TaskCard'
  * status 昇順 → sortOrder 昇順で返すため絞り込んだ時点で既に並んでいるが、
  * 並び順は API の実装ではなく画面の責任として、ここで明示しておく。
  */
-export function Column({ label, tasks }: { label: string; tasks: Task[] }) {
+export function Column({
+  label,
+  tasks,
+  onAddClick,
+}: {
+  label: string
+  tasks: Task[]
+  onAddClick: () => void
+}) {
   const sorted = [...tasks].sort((a, b) => a.sortOrder - b.sortOrder)
 
   return (
@@ -28,6 +36,19 @@ export function Column({ label, tasks }: { label: string; tasks: Task[] }) {
           ))}
         </ul>
       )}
+
+      {/*
+        F-02「各列に『カードを追加』する操作を用意する」。3 列すべてに置く
+        （S-01 の絵のとおり。未着手だけに置くと、作業中や完了に直接足せなくなる）。
+        列の末尾に置いているのは、作成されたカードが出てくる位置と揃えるため。
+      */}
+      <button
+        type="button"
+        onClick={onAddClick}
+        className="mt-2 rounded-lg px-2 py-2 text-left text-sm text-slate-500 hover:bg-slate-200 hover:text-slate-800"
+      >
+        ＋ カードを追加
+      </button>
     </section>
   )
 }
