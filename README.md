@@ -87,7 +87,17 @@ curl.exe -s http://localhost:8080/api/tasks                  # 全件
 curl.exe -s http://localhost:8080/api/tasks/2                # 1件
 curl.exe -s http://localhost:8080/api/tasks/status/todo      # status で絞り込み
 curl.exe -s -o NUL -w "%{http_code}`n" http://localhost:8080/api/tasks/9999   # 404
+
+# 登録（201 が返り、id と sortOrder はサーバーが決める）
+curl.exe -s -X POST http://localhost:8080/api/tasks -H "Content-Type: application/json" -d '{"title":"買い出しに行く","priority":"high","status":"todo"}'
+
+# タイトルが空 → 400。データベースには入らない
+curl.exe -s -X POST http://localhost:8080/api/tasks -H "Content-Type: application/json" -d '{"title":""}'
 ```
+
+**JSON の `"` をバックスラッシュで打ち消さないこと。** PowerShell 7 では**シングルクォートで囲めばそのまま渡る**（この PC は 7.6.5）。`\"` と書くとバックスラッシュごと `curl.exe` に渡り、JSON として壊れる。**PowerShell 5.1 では逆に打ち消しが必要**なので、ネットの記事はどちらの版のものか確認する。
+
+**400 の本文には理由が入らない。** タイトルが空でも `status` が不正でも同じ本文が返る（[API設計書](./docs/api-design.md) 2.4 に実測を記載）。画面に出す文言はフロント側が自前で持っている。
 
 **PowerShell では `curl` ではなく `curl.exe` と書く。** `curl` は `Invoke-WebRequest` の別名になっていて、`-s` などのオプションが通らない。
 
@@ -103,7 +113,7 @@ cd backend
 
 **JPA が入っているため、データベースが起動していないとテストが落ちる。** Testcontainers も H2 も使わず、この運用ルールで対応している（理由は [技術スタック](./docs/tech-stack.md) 6章）。
 
-**`gradlew test` は `tasks` テーブルの中身を入れ替える。** テストが本番と同じデータベースに接続し、同じ設定ファイルを読むため `data.sql` が丸ごと走る。
+**登録したタスクはテストを実行しても消えない**（第12回に対処済み）。以前はテストが本番と同じデータベースに接続して `data.sql` が丸ごと走り、`tasks` の中身が入れ替わっていた。`src/test/resources/application-test.properties` と `@ActiveProfiles("test")` で、テスト時だけ `data.sql` を実行しないようにしてある（[API設計書](./docs/api-design.md) 7章）。
 
 ## 設計文書
 

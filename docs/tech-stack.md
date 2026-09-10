@@ -7,7 +7,7 @@
 | 項目 | 内容 |
 |---|---|
 | 最終更新日 | 2026-09-10 |
-| 版 | 5.0 |
+| 版 | 5.1 |
 | ステータス | **確定** |
 
 ---
@@ -147,6 +147,16 @@ JPA を入れたことで、`contextLoads` テストがデータベース接続�
 
 Testcontainers（テスト用にコンテナを自動起動する仕組み）や H2（メモリ上の簡易データベース）を使えば依存を外せるが、どちらも道具が1つ増える。今回は「**テストの前にコンテナを起動する**」という運用ルールで対応する。
 
+**この判断の代償が第10回に表面化した。** テストが本番と同じデータベースに繋ぐため、`gradlew test` のたびに `data.sql` が走り、`tasks` の中身が入れ替わっていた。登録 API を作った第12回に、テスト時だけ `data.sql` を実行しない設定（`src/test/resources/application-test.properties`）を足して決着させた。詳しくは [API設計書 7章](./api-design.md)。
+
+**Testcontainers を選んでいれば起きなかった問題**である。運用ルールで済ませた分を、あとから設定1行で払ったことになる。
+
+### 入力チェックのライブラリを足したこと（第12回）
+
+登録 API でタイトル必須などを検査するため、`spring-boot-starter-validation` を追加した。**`spring-boot-starter-webmvc` には含まれていない。**
+
+入っているのは Hibernate Validator **9.1.3.Final** と Jakarta Validation API **3.1.1**（`gradlew dependencies` で確認）。Spring Boot 4 で `spring-boot-starter-web` が `spring-boot-starter-webmvc` に改称された一方、**この starter の名前は3系から変わっていない**。
+
 ## 7. プロトタイプで使っているもの（本採用ではない）
 
 `prototype/index.html` は画面イメージを確認するためだけの試作物で、HTML / CSS / JavaScript のみで作られている。**ここで使った技術は本番の技術スタックとは無関係**であり、選定の既成事実として扱わない。
@@ -201,3 +211,4 @@ Testcontainers（テスト用にコンテナを自動起動する仕組み）や
 | 4.0 | 2026-09-05 | 版1.0から保留していた技術スタックを確定。React + TypeScript / Java 25 + Spring Boot 4.1.1 / PostgreSQL の3層構成 |
 | 4.1 | 2026-09-06 | PostgreSQL 18 の採用理由（5章）とデータベース周りで決めたこと（6章）を追加 |
 | 5.0 | 2026-09-10 | **フロントエンドのバージョンを確定し、全項目を実測値で埋めた**（1章）。`package.json` の範囲指定と実際に入っている版が違う点を明記。**8章「フロントエンド側で決めたこと」を新規追加**（Node.js の LTS 選択、モノレポ構成、CORS を Vite で解決した理由、Tailwind 4系の設定方法） |
+| 5.1 | 2026-09-10 | 登録 API の実装にともない6章に2項目を追加。**テストが本番のデータを消していた件の決着**（Testcontainers を選ばなかった代償）と、**`spring-boot-starter-validation` の追加**（`webmvc` には含まれない。starter 名は3系から変わっていない） |
