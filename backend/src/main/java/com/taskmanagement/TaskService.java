@@ -108,6 +108,32 @@ public class TaskService {
 	}
 
 	/**
+	 * 1件を削除する（F-04 カードの削除）。**行ごと消す物理削除**なので元には戻せない。
+	 * なぜ消したことにする（論理削除）形を採らなかったかは docs/data-design.md 7章。
+	 *
+	 * 消せたら true、対象が無ければ false。204 と 404 のどちらを返すかは HTTP の都合なので
+	 * Controller に決めさせる（findById と同じ形）。
+	 *
+	 * **先に existsById で確かめているのは、deleteById が「無かった」ことを教えてくれないため。**
+	 * 実測（第14回）：存在しない id を deleteById に渡しても例外は飛ばず、何事もなかったように終わる。
+	 * この確認を挟まないと、**消せた場合と元から無かった場合が呼び出し側から区別できない。**
+	 *
+	 * 「在るか調べる」→「消す」の2手なので @Transactional を付けている（create と同じ理由）。
+	 *
+	 * **sort_order の穴は詰めない。** 1・2・3 の真ん中を消すと 1・3 が残るが、画面は
+	 * sort_order の昇順に並べるだけなので表示は変わらない（実測で確認済み）。詰め直すのは
+	 * 列の中の複数件を書き換える操作で、F-06（同じ列の中での並び替え）と同じ形になる。
+	 */
+	@Transactional
+	public boolean delete(Long id) {
+		if (!taskRepository.existsById(id)) {
+			return false;
+		}
+		taskRepository.deleteById(id);
+		return true;
+	}
+
+	/**
 	 * 状態を変え、変わった場合は並び順を移動先の列の末尾に採番し直す。
 	 *
 	 * sort_order は「同じ status の中での並び順」なので、列をまたぐと意味が変わる。
