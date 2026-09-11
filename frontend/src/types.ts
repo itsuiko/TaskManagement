@@ -55,3 +55,21 @@ export type TaskCreateInput = {
   priority: Priority | null
   status: Status
 }
+
+/**
+ * `PUT /api/tasks/{id}` に送る内容（docs/api-design.md 2.5）。
+ *
+ * 項目は `TaskCreateInput` と同じだが、**別の型として置いている**。同じに見えるのは
+ * 今の仕様がそうなっているだけで、送り先も意味も違う（新しく作る／既にあるものを置き換える）。
+ * 片方をなぞった型にすると、一方に項目が増えたときにもう一方も黙って変わる。
+ *
+ * **`status` は登録と違って必ず送る。** 省略すると「省略されたら `todo`」という *登録時* の
+ * 判断が働き、作業中のカードを保存しただけで未着手に戻る（docs/api-design.md 2.5）。
+ */
+export type TaskUpdateInput = {
+  title: string
+  description: string | null
+  dueDate: string | null
+  priority: Priority | null
+  status: Status
+}

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { createTask } from '../api'
-import { PRIORITY_LABELS, type Priority, type Status } from '../types'
+import { type Status } from '../types'
+import { toRequestFields, type TaskFormValues } from '../taskForm'
+import { TaskFormFields } from './TaskFormFields'
 
 /**
  * S-02 タスク作成モーダル（docs/screen-design.md 2章）。
@@ -9,8 +11,8 @@ import { PRIORITY_LABELS, type Priority, type Status } from '../types'
  * 閉じ込める、が自前のコードなしで付いてくる。prototype/index.html も `<dialog>` で
  * 作ってあり、第07回の「外部ライブラリを足さず標準の API で済ませる」方針の踏襲。
  *
- * **作成専用にしてある。** F-03（編集）と共用できそうに見えるが、編集の API はまだ無い。
- * 使う先が決まらないうちに共通化しない。
+ * **入力欄は `TaskFormFields` と共有し、送信だけをここが持つ。** 第12回は編集の API が
+ * まだ無かったため作成専用にしていた。編集（S-03）ができたので切り出した。
  *
  * このコンポーネントは開いている間だけ存在する（App が条件付きで描画する）。
  * 閉じるたびに消えるので、入力内容を消す処理を自分で書く必要がない。
@@ -32,10 +34,12 @@ export function TaskCreateModal({
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
 
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [dueDate, setDueDate] = useState('')
-  const [priority, setPriority] = useState<Priority | ''>('')
+  const [values, setValues] = useState<TaskFormValues>({
+    title: '',
+    description: '',
+    dueDate: '',
+    priority: '',
+  })
 
   /** 入力の誤り（画面側で気づけるもの）。通信する前に出す */
   const [titleError, setTitleError] = useState<string | null>(null)
@@ -54,7 +58,7 @@ export function TaskCreateModal({
 
     // F-02「タイトルが空のまま作成しようとした場合は、作成せずにエラーを表示する」。
     // 空白だけの入力も空として扱う（サーバー側の @NotBlank と揃えてある）。
-    if (title.trim() === '') {
+    if (values.title.trim() === '') {
       setTitleError('タイトルを入力してください。')
       setSaveError(null)
       return
@@ -64,14 +68,7 @@ export function TaskCreateModal({
     setSaving(true)
 
     try {
-      await createTask({
-        title: title.trim(),
-        // 未入力は null で送る。空文字だと「空文字が入力された」ことになってしまう。
-        description: description.trim() === '' ? null : description,
-        dueDate: dueDate === '' ? null : dueDate,
-        priority: priority === '' ? null : priority,
-        status,
-      })
+      await createTask({ ...toRequestFields(values), status })
       await onCreated()
       onClose()
     } catch (error: unknown) {
@@ -106,71 +103,11 @@ export function TaskCreateModal({
         </div>
 
         <div className="flex flex-col gap-4 px-5 py-4">
-          <div>
-            <label htmlFor="f-title" className="mb-1 block text-sm font-medium text-slate-700">
-              タイトル <span className="text-rose-600">＊</span>
-            </label>
-            <input
-              id="f-title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              maxLength={100}
-              autoComplete="off"
-              autoFocus
-              aria-invalid={titleError !== null}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none"
-            />
-            {titleError && (
-              <p role="alert" className="mt-1 text-sm text-rose-700">
-                {titleError}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="f-description" className="mb-1 block text-sm font-medium text-slate-700">
-              説明文
-            </label>
-            <textarea
-              id="f-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none"
-            />
-          </div>
-
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label htmlFor="f-due-date" className="mb-1 block text-sm font-medium text-slate-700">
-                期限
-              </label>
-              <input
-                id="f-due-date"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none"
-              />
-            </div>
-            <div className="flex-1">
-              <label htmlFor="f-priority" className="mb-1 block text-sm font-medium text-slate-700">
-                優先度
-              </label>
-              <select
-                id="f-priority"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as Priority | '')}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none"
-              >
-                <option value="">未指定</option>
-                <option value="high">{PRIORITY_LABELS.high}</option>
-                <option value="medium">{PRIORITY_LABELS.medium}</option>
-                <option value="low">{PRIORITY_LABELS.low}</option>
-              </select>
-            </div>
-          </div>
+          <TaskFormFields
+            values={values}
+            onChange={(patch) => setValues({ ...values, ...patch })}
+            titleError={titleError}
+          />
 
           {/*
             F-07「保存に失敗した場合は、画面上にエラーを表示する（成功したように見せてはならない）」。
