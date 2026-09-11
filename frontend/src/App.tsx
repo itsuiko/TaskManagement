@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchTasks, updateTaskStatus } from './api'
 import { Column } from './components/Column'
 import { TaskCreateModal } from './components/TaskCreateModal'
+import { TaskDeleteDialog } from './components/TaskDeleteDialog'
 import { TaskEditModal } from './components/TaskEditModal'
 import { COLUMNS, type Status, type Task } from './types'
 
@@ -30,6 +31,15 @@ export default function App() {
 
   /** 編集モーダルで開いているカード。`null` なら閉じている（考え方は addingTo と同じ） */
   const [editing, setEditing] = useState<Task | null>(null)
+
+  /**
+   * 削除の確認ダイアログで開いているカード。`null` なら閉じている。
+   *
+   * **`editing` と同時に値が入ることはない。** 削除を押した時点で編集を閉じる——
+   * `<dialog>` を2枚重ねて開くと、上を閉じたときに下が残り、消したはずのカードの
+   * 編集画面が出てくる。
+   */
+  const [deleting, setDeleting] = useState<Task | null>(null)
 
   /** 移動に失敗したときの文言。カードは元の列に戻したうえで、これを出す */
   const [moveError, setMoveError] = useState<string | null>(null)
@@ -186,7 +196,20 @@ export default function App() {
         <TaskEditModal
           task={editing}
           onSaved={() => reload('保存は完了しました')}
+          onDeleteClick={() => {
+            // 編集を閉じてから確認を開く。順番が逆だと2枚重なる
+            setDeleting(editing)
+            setEditing(null)
+          }}
           onClose={() => setEditing(null)}
+        />
+      )}
+
+      {deleting && (
+        <TaskDeleteDialog
+          task={deleting}
+          onDeleted={() => reload('削除は完了しました')}
+          onClose={() => setDeleting(null)}
         />
       )}
     </div>
