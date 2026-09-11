@@ -13,18 +13,27 @@ import { TaskFormFields } from './TaskFormFields'
  * 2. **状態（未着手 / 作業中 / 完了）を選べる**——ドラッグが使えない場面で列を移動する手段
  * 3. 送り先が `PUT /api/tasks/{id}`
  *
- * **削除ボタンは置いていない。** docs/screen-design.md には「削除ボタンを併設する」とあるが、
- * 削除の API（F-04）はまだ無い。押せるのに何も起きないボタンは置かない。
+ * **フッターの左端に「削除」ボタンを置いている**（F-04）。押すとこのモーダルを閉じて、
+ * 削除確認ダイアログ（S-04）に移る。`<dialog>` を2枚重ねて開くと、上を閉じたときに
+ * 下が残って「消したはずのカードの編集画面」が出てくるため、先にこちらを閉じる。
+ * prototype/index.html も同じ流れ。
  */
 export function TaskEditModal({
   task,
   onSaved,
+  onDeleteClick,
   onClose,
 }: {
   /** 編集するカード。初期値の取り出し元 */
   task: Task
   /** 保存できたときに呼ぶ。App が一覧を取り直す */
   onSaved: () => Promise<void>
+  /**
+   * 「削除」を押したときに呼ぶ。**確認ダイアログを開くのは App の仕事。**
+   * ここは「押された」ことだけを伝える。閉じる側と開く側が別のコンポーネントなので、
+   * 両方を知っている App が2枚の出し入れを持つ。
+   */
+  onDeleteClick: () => void
   /** 閉じるときに呼ぶ */
   onClose: () => void
 }) {
@@ -142,7 +151,21 @@ export function TaskEditModal({
           )}
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
+        <div className="flex items-center gap-2 border-t border-slate-200 px-5 py-3">
+          {/*
+            削除だけ左端に離してある（prototype/index.html と同じ）。保存・キャンセルと
+            並べると、押すつもりのないものを押しやすい。取り消せない操作なので距離を取る。
+          */}
+          <button
+            type="button"
+            onClick={onDeleteClick}
+            className="rounded-lg px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"
+          >
+            削除
+          </button>
+
+          <span className="flex-1" />
+
           <button
             type="button"
             onClick={onClose}

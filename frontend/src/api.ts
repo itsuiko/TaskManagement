@@ -141,3 +141,26 @@ export async function updateTaskStatus(id: number, status: Status): Promise<Task
 
   return response.json() as Promise<Task>
 }
+
+/**
+ * 1 件削除する（`DELETE /api/tasks/{id}`）。**行ごと消える物理削除で、元には戻せない。**
+ *
+ * **返ってくるのは 204 で、本文が無い。** だから `response.json()` を呼ばない。
+ * 空の応答を JSON として読もうとすると、削除は成功しているのに例外になる。
+ * 戻り値が `void` なのもそのため——サーバーから受け取るものが何も無い。
+ *
+ * **対象が無いときは 404 が返る**（docs/api-design.md 2.7）。別のブラウザで先に消されていた
+ * 場合に起きる。`hintFor` の 404 の案内文がそのまま当てはまる。
+ */
+export async function deleteTask(id: number): Promise<void> {
+  let response: Response
+  try {
+    response = await fetch(`/api/tasks/${id}`, { method: 'DELETE' })
+  } catch (cause) {
+    throw connectionError(cause)
+  }
+
+  if (!response.ok) {
+    throw new Error(`タスクを削除できませんでした（HTTP ${response.status}）。${hintFor(response.status)}`)
+  }
+}
