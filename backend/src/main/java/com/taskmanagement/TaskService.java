@@ -14,6 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
  * 登録（create）には「その列の末尾に置く」「状態を省略されたら未着手にする」という
  * 判断が入っている。これが Controller に書かれていると、画面から呼ばれる経路以外
  * （バッチ処理など）から同じ判断を使えなくなる。
+ *
+ * 更新（update / updateStatus）にも「列をまたいだら並び順を採番し直す」という判断が入る。
+ * 登録と更新で同じ規則（その列の末尾）を使うので、規則そのものは nextSortOrder に1つだけ置く。
  */
 @Service
 public class TaskService {
@@ -68,6 +71,73 @@ public class TaskService {
 		task.setSortOrder(nextSortOrder(status));
 
 		return taskRepository.save(task);
+	}
+
+	/**
+	 * 内容を丸ごと書き換える（F-03 カードの編集）。
+	 *
+	 * 見つからないことがあるので Optional で返す。404 にするかどうかは HTTP の都合なので
+	 * Controller に決めさせる（findById と同じ形）。
+	 *
+	 * 「読んでから書く」2手なので @Transactional を付けている（create と同じ理由）。
+	 */
+	@Transactional
+	public Optional<Task> update(Long id, TaskUpdateRequest request) {
+		return taskRepository.findById(id).map(task -> {
+			task.setTitle(request.title());
+			task.setDescription(request.description());
+			task.setDueDate(request.dueDate());
+			task.setPriority(request.priority());
+			applyStatus(task, request.status());
+			return taskRepository.save(task);
+		});
+	}
+
+	/**
+	 * 状態だけを変える（F-05 カードの移動）。カードを別の列にドラッグしたときに呼ばれる。
+	 *
+	 * update との違いは、書き換える項目が status ひとつだけであること。
+	 * タイトルや期限は画面上の位置と関係がないので、送られてこないし触らない。
+	 */
+	@Transactional
+	public Optional<Task> updateStatus(Long id, String status) {
+		return taskRepository.findById(id).map(task -> {
+			applyStatus(task, status);
+			return taskRepository.save(task);
+		});
+	}
+
+	/**
+	 * 状態を変え、変わった場合は並び順を移動先の列の末尾に採番し直す。
+	 *
+	 * sort_order は「同じ status の中での並び順」なので、列をまたぐと意味が変わる。
+	 * 未着手で3番だったカードをそのまま作業中に移すと、作業中の3番の位置に割り込むことになり、
+	 * 同じ番号のカードが2枚並ぶこともある。移動先の末尾に置き直すことでこれを避ける。
+	 *
+	 * **落とした位置は反映しない。** 列のどこにドロップしても末尾に入る。位置を反映するには
+	 * 移動先の列の他のカードの並び順も詰め直す必要があり、それは F-06（同じ列の中での並び替え）の
+	 * 仕事になる（docs/api-design.md 6章）。
+	 *
+	 * 状態が変わっていなければ何もしない。タイトルだけ直して保存するたびにカードが列の末尾へ
+	 * 飛ぶと、直した本人が驚く。
+	 */
+	private void applyStatus(Task task, String status) {
+		if (status.equals(task.getStatus())) {
+			return;
+		}
+		// ⚠️ 採番を先に済ませてから status を書き換える。**この順番でなければ正しく採番されない。**
+		//
+		// 逆にすると、移動中のカード自身を「移動先の列にいるカード」として数えてしまう。
+		// Hibernate は問い合わせの直前に、まだ書き込んでいない変更をデータベースへ送る
+		// （自動フラッシュ）。status を先に書き換えると、その変更が送られた後で
+		// nextSortOrder の検索が走るため、自分自身が移動先の列の最大値として返ってくる。
+		//
+		// 実測（第13回）：sort_order 3 の todo のカードを done へ PATCH したところ、
+		// done には sort_order 1 のカードが1枚しかないのに **4** が付いた（3 + 1 = 自分 + 1）。
+		// 並び順そのものは末尾で正しいが、番号が移動元から引き継がれ、列の中に穴が空く。
+		int sortOrder = nextSortOrder(status);
+		task.setStatus(status);
+		task.setSortOrder(sortOrder);
 	}
 
 	/**

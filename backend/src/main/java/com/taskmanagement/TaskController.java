@@ -5,8 +5,10 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -75,5 +77,40 @@ public class TaskController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public Task create(@Valid @RequestBody TaskCreateRequest request) {
 		return taskService.create(request);
+	}
+
+	/**
+	 * PUT /api/tasks/{id} — 1件の内容を丸ごと書き換える（F-03 カードの編集）。
+	 *
+	 * PUT は「この URL の中身をこれにする」という意味の操作なので、送られてこなかった項目は
+	 * 空になる。説明文を消したいときは null を送れば消える。
+	 *
+	 * 見つからなければ本文なしの 404。GET /api/tasks/{id} と同じ扱いにしてある。
+	 * 「更新しようとしたが対象が無かった」を 200 で返すと、呼び出した側は
+	 * 書き換わったものと勘違いする。
+	 */
+	@PutMapping("/{id}")
+	public ResponseEntity<Task> update(@PathVariable Long id, @Valid @RequestBody TaskUpdateRequest request) {
+		return taskService.update(id, request)
+				.map(ResponseEntity::ok)
+				.orElseGet(() -> ResponseEntity.notFound().build());
+	}
+
+	/**
+	 * PATCH /api/tasks/{id}/status — 状態だけを変える（F-05 カードの移動）。
+	 *
+	 * PUT と違って、送るのは status ひとつだけ。カードを別の列にドラッグしたときに呼ばれる。
+	 * 移動先での並び順はサーバーが決めるので、送る項目には入っていない。
+	 *
+	 * PUT ではなく PATCH なのは、書き換えるのが一部だけだからである。
+	 * URL も /status を足して分けてある。同じ /api/tasks/{id} に PATCH を当てると
+	 * 「一部だけ更新する汎用の入口」になり、何が送られてくるか呼ばれる側から分からなくなる。
+	 */
+	@PatchMapping("/{id}/status")
+	public ResponseEntity<Task> updateStatus(@PathVariable Long id,
+			@Valid @RequestBody TaskStatusUpdateRequest request) {
+		return taskService.updateStatus(id, request.status())
+				.map(ResponseEntity::ok)
+				.orElseGet(() -> ResponseEntity.notFound().build());
 	}
 }
