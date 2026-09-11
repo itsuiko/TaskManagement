@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { PRIORITY_LABELS, type Priority, type Task } from '../types'
 
 /**
@@ -21,9 +22,46 @@ function formatDueDate(dueDate: string): string {
   return dueDate.replaceAll('-', '/')
 }
 
-export function TaskCard({ task }: { task: Task }) {
+/**
+ * ボードの 1 枚のカード。
+ *
+ * **クリックで編集（F-03）、ドラッグで列の移動（F-05）。** どちらも prototype/index.html と
+ * 同じ形にしてある——`draggable` と `tabIndex` を持つ 1 つの要素が、click と keydown と
+ * dragstart を受ける。外部ライブラリは使わない（第07回の方針）。
+ *
+ * **`<button>` で包んでいない。** ボタンにすると中の `<p>` が置けず、ドラッグの扱いも
+ * ブラウザによって変わる。代わりに `role="button"` と `tabIndex` を付けて、
+ * キーボードでも開けるようにしている（Enter と Space。プロトタイプと同じ）。
+ */
+export function TaskCard({ task, onOpen }: { task: Task; onOpen: () => void }) {
+  /** 自分がドラッグされている最中か。掴んでいるカードを薄くするだけに使う */
+  const [dragging, setDragging] = useState(false)
+
   return (
-    <li className="rounded-lg bg-white p-3 shadow-sm ring-1 ring-slate-200">
+    <li
+      draggable
+      tabIndex={0}
+      role="button"
+      aria-label={`${task.title} を編集`}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          // Space は既定だと画面を下にスクロールさせるので止める
+          event.preventDefault()
+          onOpen()
+        }
+      }}
+      onDragStart={(event) => {
+        // 運ぶのは id だけ。中身は画面側が既に持っている
+        event.dataTransfer.setData('text/plain', String(task.id))
+        event.dataTransfer.effectAllowed = 'move'
+        setDragging(true)
+      }}
+      onDragEnd={() => setDragging(false)}
+      className={`cursor-grab rounded-lg bg-white p-3 shadow-sm ring-1 ring-slate-200 hover:ring-sky-300 focus:ring-2 focus:ring-sky-500 focus:outline-none ${
+        dragging ? 'opacity-40' : ''
+      }`}
+    >
       <p className="font-medium break-words text-slate-900">{task.title}</p>
 
       {(task.priority || task.dueDate) && (
