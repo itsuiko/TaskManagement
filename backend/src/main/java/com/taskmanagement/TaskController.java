@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -112,5 +113,26 @@ public class TaskController {
 		return taskService.updateStatus(id, request.status())
 				.map(ResponseEntity::ok)
 				.orElseGet(() -> ResponseEntity.notFound().build());
+	}
+
+	/**
+	 * DELETE /api/tasks/{id} — 1件を削除する（F-04 カードの削除）。
+	 *
+	 * 消せたときは本文の無い **204 No Content**。削除したあとに返す中身が存在しないためで、
+	 * 200 に空の本文を付けるのではなく、本文が無いこと自体を状態コードに語らせる。
+	 *
+	 * 対象が無いときは **404**。PUT / PATCH と揃えてある。
+	 *
+	 * **ここは HTTP の一般的な流儀とは違う。** DELETE は何度呼んでも結果が同じ（冪等）なので、
+	 * 既に無い場合も「結果として無いのだから成功」と見なして 204 を返す作りもある。
+	 * それでも 404 にしたのは、画面側が 404 用の案内文を既に持っているからである
+	 * （「この画面を開いたあとに、そのタスクが無くなった可能性があります」）。
+	 * 別のブラウザで先に消されていた場合に、黙って成功として扱わずに済む。
+	 */
+	@DeleteMapping("/{id}")
+	public ResponseEntity<Void> delete(@PathVariable Long id) {
+		return taskService.delete(id)
+				? ResponseEntity.noContent().build()
+				: ResponseEntity.notFound().build();
 	}
 }
