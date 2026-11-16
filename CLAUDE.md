@@ -133,6 +133,26 @@ Testcontainers も H2 も使わず、この運用ルールで対応している�
 データベースの接続先まで書き写すことになる。プロファイル名を付けた
 `application-test.properties` は上書きとして働く（理由は `docs/api-design.md` 7章）。
 
+### bootRun しても登録したタスクは消えない
+
+`data.sql` は **`tasks` が0件のときだけ**サンプル6件（タイトルに `【サンプル】`）を入れる。
+第15回までは起動のたびに `DELETE FROM tasks` で全件を消して入れ直しており、完了条件 #12
+「バックエンドを再起動してもタスクが残っている」を満たしていなかった（Issue #34）。
+
+**`data.sql` に `DELETE` や `TRUNCATE` を書き戻さないこと。** サンプルを入れ直したいときは、
+画面から全部消して起動し直す。
+
+### 品質チェックは `/quality-check`
+
+機能を1つ実装したら、PR を作る前に `.claude/skills/quality-check/SKILL.md` の観点で確認する。
+機械の検査は次の3つ（**すべて通ってから PR を作る**）。
+
+```powershell
+cd backend;  ./gradlew check     # Checkstyle + テスト（先に docker compose up -d --wait）
+cd frontend; npm run lint        # oxlint
+cd frontend; npm run build       # 型の検査（tsc）
+```
+
 ### 破壊的なコマンドは禁止済み
 
 `rm` / `git reset --hard` / `git clean` / `git push --force` などは `.claude/settings.json` の
@@ -144,7 +164,7 @@ deny リストに入れてある。回避しない。ファイルを消したい
 |---|---|
 | `docs/` | 設計文書。[`requirements.md`](docs/requirements.md) が本体で、そこから機能要件・画面設計・データ設計・API設計・技術スタックに分かれる（6文書） |
 | `backend/` | Spring Boot 4.1.1 / Java 25 (Temurin) / Gradle (Groovy DSL) |
-| `frontend/` | React 19 / TypeScript / Vite / Tailwind CSS 4。**表示と新規作成**（編集・削除・D&D は未実装） |
+| `frontend/` | React 19 / TypeScript / Vite / Tailwind CSS 4。**表示・作成・編集・削除・列間移動**（列内の並び替え・ソート・取り消しは未実装） |
 | `compose.yaml` | PostgreSQL 18 のコンテナ定義。ホストの `127.0.0.1:5432` に公開 |
 | `prototype/index.html` | 第07回のプロトタイプ。HTML/CSS/JS 1ファイル、保存機能なし |
 

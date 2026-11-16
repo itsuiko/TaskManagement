@@ -24,7 +24,7 @@ public class TaskService {
 	/** 状態を省略して登録されたときの既定値。Task.java のフィールド初期値と揃えてある。 */
 	private static final String DEFAULT_STATUS = "todo";
 
-	/** その列にまだ1件も無いときの sort_order。data.sql の並びに合わせて 0 ではなく 1 から始める。 */
+	/** その列にまだ1件も無いときの sort_order。data.sql のサンプルに合わせて 0 ではなく 1 から始める。 */
 	private static final int FIRST_SORT_ORDER = 1;
 
 	private final TaskRepository taskRepository;
@@ -54,9 +54,22 @@ public class TaskService {
 	 * 受け取った内容に加えて、id はデータベースが、作成日時と更新日時は Hibernate が、
 	 * 並び順はこのメソッドが決める。呼び出し側から渡せる値ではない。
 	 *
-	 * 「いまの最大値を読む」→「その次の番号で書く」の2手なので、間に別の登録が
-	 * 割り込むと同じ番号が2枚に付く。利用者1名のアプリでまず起きないが、
-	 * 2手をひとまとまりの処理として扱わせるために @Transactional を付けている。
+	 * ■ @Transactional が保証すること・しないこと
+	 *
+	 * 保証するのは **「途中で失敗したら、このメソッドの中で行った書き込みを全部取り消す」** こと。
+	 * 半分だけ書かれた状態がデータベースに残らない。
+	 *
+	 * **同じ番号が2枚に付くことは防がない。** 「いまの最大値を読む」→「その次の番号で書く」の
+	 * 2手の間に別の登録が割り込むと、両方が同じ最大値を読んで同じ番号を付ける。
+	 * PostgreSQL の既定の分離レベル（READ COMMITTED）は、他の処理がまだ確定していない行を
+	 * 見せないだけで、読んでから書くまでの間に割り込まれること自体は止めないためである。
+	 *
+	 * 第15回の品質チェックまで、ここには「割り込みを防ぐために @Transactional を付けている」と
+	 * 書いてあった。それは誤りだったので直した。
+	 *
+	 * 防ぐなら列への一意制約（status と sort_order の組）や行のロックが要るが、**入れていない。**
+	 * 利用者1名のアプリで同時に2つの登録が走る場面がまず無く、仮に同じ番号が付いても
+	 * 表示が崩れるわけではない（同じ番号の2枚が隣り合って並ぶだけ）。
 	 */
 	@Transactional
 	public Task create(TaskCreateRequest request) {
@@ -79,7 +92,8 @@ public class TaskService {
 	 * 見つからないことがあるので Optional で返す。404 にするかどうかは HTTP の都合なので
 	 * Controller に決めさせる（findById と同じ形）。
 	 *
-	 * 「読んでから書く」2手なので @Transactional を付けている（create と同じ理由）。
+	 * 「読んでから書く」2手を、失敗したらまとめて取り消せるように @Transactional を付けている
+	 * （保証する範囲は create のコメントを参照。同時に走る別の更新による上書きは防がない）。
 	 */
 	@Transactional
 	public Optional<Task> update(Long id, TaskUpdateRequest request) {
@@ -118,7 +132,8 @@ public class TaskService {
 	 * 実測（第14回）：存在しない id を deleteById に渡しても例外は飛ばず、何事もなかったように終わる。
 	 * この確認を挟まないと、**消せた場合と元から無かった場合が呼び出し側から区別できない。**
 	 *
-	 * 「在るか調べる」→「消す」の2手なので @Transactional を付けている（create と同じ理由）。
+	 * 「在るか調べる」→「消す」の2手を1つのまとまりにするために @Transactional を付けている
+	 * （保証する範囲は create のコメントを参照）。
 	 *
 	 * **sort_order の穴は詰めない。** 1・2・3 の真ん中を消すと 1・3 が残るが、画面は
 	 * sort_order の昇順に並べるだけなので表示は変わらない（実測で確認済み）。詰め直すのは

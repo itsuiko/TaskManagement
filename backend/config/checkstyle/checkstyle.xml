@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+		"-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+		"https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!--
+	バックエンドの書き方の検査（第15回の品質チェックで追加）。`gradlew check` で走る。
+
+	■ Google Java Style をそのまま使っていない理由
+
+	講義は「Google Java スタイルベース」だったが、あの規則は字下げを空白2つと決めている。
+	このリポジトリの Java は Spring Initializr が配った雛形のままタブで字下げしてあり、
+	適用すると全行が違反になる。字下げを直すためだけに全ファイルを書き換えることになり、
+	本当に見たい指摘がその中に埋もれる。
+
+	そこで「見た目」の規則は入れず、**間違いに繋がるものだけ**を選んだ。
+
+	■ 規則を足すとき
+
+	https://checkstyle.org/checks.html に一覧がある。足したら `gradlew check` を実行し、
+	出た違反を「コードを直す」か「その規則は採らない」かのどちらかで決着させる。
+	**違反を黙らせる指定（@SuppressWarnings や抑制用のコメント）で通さない。**
+-->
+<module name="Checker">
+	<property name="charset" value="UTF-8"/>
+	<property name="severity" value="error"/>
+
+	<module name="TreeWalker">
+
+		<!-- 使っていない import・重複した import・* でまとめた import。消し忘れは読む人を迷わせる -->
+		<module name="UnusedImports"/>
+		<module name="RedundantImport"/>
+		<module name="AvoidStarImport"/>
+
+		<!--
+			空の catch。**エラーが起きたことを握りつぶす書き方**で、動いているように見えるのに
+			実は失敗している、という状態を作る。品質チェックで一番見つけたいもの。
+		-->
+		<module name="EmptyCatchBlock"/>
+		<module name="EmptyStatement"/>
+
+		<!-- if や for の波かっこを省略しない。1行足したときに、条件の外に出てしまう事故を防ぐ -->
+		<module name="NeedBraces"/>
+
+		<!-- 文字列を == で比べない。Java では「同じ中身か」ではなく「同じ物か」の比較になる -->
+		<module name="StringLiteralEquality"/>
+
+		<!-- equals だけ書いて hashCode を書かない、を禁じる。片方だけだと Set や Map で壊れる -->
+		<module name="EqualsHashCode"/>
+
+		<!-- switch の default 抜けと、break を書き忘れて次の case に落ちるもの -->
+		<module name="MissingSwitchDefault"/>
+		<module name="FallThrough"/>
+
+		<!-- 引数に代入し直さない。途中から「渡された値」ではなくなり、読み違える -->
+		<module name="ParameterAssignment"/>
+
+		<!-- 1つのファイルに外側のクラスは1つ。ファイル名とクラス名が一致する -->
+		<module name="OneTopLevelClass"/>
+		<module name="OuterTypeFilename"/>
+
+		<!-- long の末尾は大文字の L。小文字の l は数字の 1 と見分けがつかない -->
+		<module name="UpperEll"/>
+
+	</module>
+</module>

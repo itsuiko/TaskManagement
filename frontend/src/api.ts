@@ -8,8 +8,8 @@ import type { Status, Task, TaskCreateInput, TaskUpdateInput } from './types'
  * - **400**：送った内容が受け付けられなかった。**本文に理由は入らない**ので、
  *   どの項目が悪いかはここでは分からない（docs/api-design.md 2.4）。
  *   画面に出す文言は入力欄のそばで自前に持つ
- * - **404**：対象のカードが無い。`bootRun` のたびに `data.sql` が走って id が振り直されるため、
- *   画面を開いたままバックエンドを入れ直すと起きる（docs/api-design.md 2.5）
+ * - **404**：対象のカードが無い。画面を開いたあとに、別のブラウザやタブでそのカードが
+ *   削除されたときに起きる（docs/api-design.md 2.7）
  * - **502**：中継役の Vite が「転送先が居ない」と判断して返す。バックエンドの停止中に確認した
  * - **500**：バックエンドは応答しているが処理に失敗している。データベースのコンテナだけを
  *   止めた状態で確認したところ、接続を **30 秒** 待ってから 500 が返った
@@ -34,6 +34,48 @@ function connectionError(cause: unknown): Error {
 }
 
 /**
+ * 通信して、失敗を例外に直すところまでを 1 か所で行う。下の 5 つの関数すべてがここを通る。
+ *
+ * 第15回の品質チェックまでは、同じ十数行（fetch を try で囲む → `response.ok` を見る →
+ * 文言を組み立てる）が 5 つの関数それぞれに書いてあった。**同じ判断が 5 か所にあると、
+ * 直すときに 1 か所だけ直し忘れる。** 失敗の扱いを変えたくなったらここだけを直せばよい。
+ *
+ * 失敗は 2 種類ある。
+ *
+ * 1. **応答が返ってこない**（fetch 自体が例外を投げる）→ `connectionError`
+ * 2. **応答は返ったが失敗を表す状態コード**（`response.ok` が false）→ `failure` に
+ *    状態コードと `hintFor` の案内を付ける
+ *
+ * `fetch` は 2 の場合に例外を投げない。404 でも 500 でも「通信は成立した」として普通に
+ * 返ってくるので、`response.ok` を見ないと失敗に気づけない。
+ *
+ * @param failure 失敗したときの文言の先頭。例：`'タスクを取得できませんでした'`
+ */
+async function request(path: string, failure: string, init?: RequestInit): Promise<Response> {
+  let response: Response
+  try {
+    response = await fetch(path, init)
+  } catch (cause) {
+    throw connectionError(cause)
+  }
+
+  if (!response.ok) {
+    throw new Error(`${failure}（HTTP ${response.status}）。${hintFor(response.status)}`)
+  }
+
+  return response
+}
+
+/** JSON を本文として送るときの指定。POST / PUT / PATCH で共通 */
+function jsonBody(method: 'POST' | 'PUT' | 'PATCH', body: unknown): RequestInit {
+  return {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }
+}
+
+/**
  * 全件を取得する（`GET /api/tasks`）。
  *
  * パスを `/api/tasks` と相対で書いているのは、Vite の server.proxy が
@@ -44,17 +86,7 @@ function connectionError(cause: unknown): Error {
  * 全件を 1 回取れば足りる（通信を 3 回に増やす理由がない）。
  */
 export async function fetchTasks(): Promise<Task[]> {
-  let response: Response
-  try {
-    response = await fetch('/api/tasks')
-  } catch (cause) {
-    throw connectionError(cause)
-  }
-
-  if (!response.ok) {
-    throw new Error(`タスクを取得できませんでした（HTTP ${response.status}）。${hintFor(response.status)}`)
-  }
-
+  const response = await request('/api/tasks', 'タスクを取得できませんでした')
   return response.json() as Promise<Task[]>
 }
 
@@ -68,21 +100,7 @@ export async function fetchTasks(): Promise<Task[]> {
  * 本文に理由が入らないため「タイトルが空だった」と伝え直せない。
  */
 export async function createTask(input: TaskCreateInput): Promise<Task> {
-  let response: Response
-  try {
-    response = await fetch('/api/tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
-    })
-  } catch (cause) {
-    throw connectionError(cause)
-  }
-
-  if (!response.ok) {
-    throw new Error(`タスクを登録できませんでした（HTTP ${response.status}）。${hintFor(response.status)}`)
-  }
-
+  const response = await request('/api/tasks', 'タスクを登録できませんでした', jsonBody('POST', input))
   return response.json() as Promise<Task>
 }
 
@@ -96,21 +114,7 @@ export async function createTask(input: TaskCreateInput): Promise<Task> {
  * 弾かれるが、本文に理由が入らないため「タイトルが空だった」と伝え直せない。
  */
 export async function updateTask(id: number, input: TaskUpdateInput): Promise<Task> {
-  let response: Response
-  try {
-    response = await fetch(`/api/tasks/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
-    })
-  } catch (cause) {
-    throw connectionError(cause)
-  }
-
-  if (!response.ok) {
-    throw new Error(`タスクを更新できませんでした（HTTP ${response.status}）。${hintFor(response.status)}`)
-  }
-
+  const response = await request(`/api/tasks/${id}`, 'タスクを更新できませんでした', jsonBody('PUT', input))
   return response.json() as Promise<Task>
 }
 
@@ -124,21 +128,11 @@ export async function updateTask(id: number, input: TaskUpdateInput): Promise<Ta
  * **移動先での並び順は送らない。** サーバーが移動先の列の末尾に採番する。
  */
 export async function updateTaskStatus(id: number, status: Status): Promise<Task> {
-  let response: Response
-  try {
-    response = await fetch(`/api/tasks/${id}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    })
-  } catch (cause) {
-    throw connectionError(cause)
-  }
-
-  if (!response.ok) {
-    throw new Error(`タスクを移動できませんでした（HTTP ${response.status}）。${hintFor(response.status)}`)
-  }
-
+  const response = await request(
+    `/api/tasks/${id}/status`,
+    'タスクを移動できませんでした',
+    jsonBody('PATCH', { status }),
+  )
   return response.json() as Promise<Task>
 }
 
@@ -153,14 +147,5 @@ export async function updateTaskStatus(id: number, status: Status): Promise<Task
  * 場合に起きる。`hintFor` の 404 の案内文がそのまま当てはまる。
  */
 export async function deleteTask(id: number): Promise<void> {
-  let response: Response
-  try {
-    response = await fetch(`/api/tasks/${id}`, { method: 'DELETE' })
-  } catch (cause) {
-    throw connectionError(cause)
-  }
-
-  if (!response.ok) {
-    throw new Error(`タスクを削除できませんでした（HTTP ${response.status}）。${hintFor(response.status)}`)
-  }
+  await request(`/api/tasks/${id}`, 'タスクを削除できませんでした', { method: 'DELETE' })
 }

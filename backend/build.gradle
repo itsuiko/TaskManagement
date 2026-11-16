@@ -2,6 +2,8 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '4.1.1'
 	id 'io.spring.dependency-management' version '1.1.7'
+	// 書き方の検査（フロントの oxlint に当たるもの）。Gradle に同梱されているので版の指定は不要。
+	id 'checkstyle'
 }
 
 group = 'com.taskmanagement'
@@ -31,4 +33,17 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// 書き方の検査（第15回の品質チェックで追加）。
+//
+// `gradlew check` で、この検査とテストの両方が走る。規則は config/checkstyle/checkstyle.xml。
+//
+// 検査する道具そのもの（Checkstyle 本体）の版はここで固定する。固定しないと Gradle に
+// 同梱された既定の版が使われ、Gradle を上げたときに規則の解釈が黙って変わる。
+checkstyle {
+	toolVersion = '14.4.0'
+	// 既定では「警告」は何件あってもビルドが通る。通ってしまう警告は読まれなくなるので、
+	// 1件でも出たら失敗させる。
+	maxWarnings = 0
 }

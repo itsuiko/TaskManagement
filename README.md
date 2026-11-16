@@ -70,7 +70,9 @@ npm install                  # 初回のみ
 npm run dev                  # http://localhost:5173
 ```
 
-ブラウザで **http://localhost:5173** を開く。`backend/src/main/resources/data.sql` のテストデータ6件が、未着手3 / 作業中2 / 完了1 に分かれて表示される。
+ブラウザで **http://localhost:5173** を開く。初めて起動したときは、使い方の見本（タイトルに `【サンプル】` と付いたカード）6件が、未着手3 / 作業中2 / 完了1 に分かれて表示される。
+
+**サンプルが入るのは `tasks` が0件のときだけ。** 入ったあとは自分で登録したタスクと同じ扱いで、編集も削除もできる。**バックエンドを起動し直しても、登録したタスクは消えない。**（第15回までは起動のたびに全件を消して入れ直していた。完了条件 #12 に反していたので直した）
 
 停止は各ターミナルで `Ctrl+C`。データベースは `docker compose down`（データも消すなら `-v`）。
 
@@ -121,8 +123,12 @@ docker compose exec db psql -U taskuser -d task_management -c "SELECT count(*) F
 ```powershell
 docker compose up -d --wait     # 先にこれ
 cd backend
-./gradlew test
+./gradlew check                 # 書き方の検査（Checkstyle）とテストの両方
 ```
+
+`./gradlew test` ならテストだけ。フロントエンドは `cd frontend` して `npm run lint`（oxlint）と `npm run build`（型の検査）。
+
+**API の振る舞いは `TaskApiTests` が確かめる**（登録・更新・移動・削除の状態コードと、並び順の採番）。テストが書いた行は毎回取り消されるので、画面には出てこない。
 
 **JPA が入っているため、データベースが起動していないとテストが落ちる。** Testcontainers も H2 も使わず、この運用ルールで対応している（理由は [技術スタック](./docs/tech-stack.md) 6章）。
 
