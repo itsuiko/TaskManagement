@@ -53,8 +53,9 @@ cd backend
 
 `Started TaskManagementApplication` が出れば起動完了。http://localhost:8080
 
-**起動すると `data.sql` が走り、`tasks` の中身が6件に戻る**（`spring.sql.init.mode=always`）。
-残したいデータがあるときは先に退避する。**テストでは走らない**（下記）。
+**起動しても登録したタスクは消えない。** `data.sql` は起動のたびに走るが、サンプル6件
+（タイトルに `【サンプル】`）を入れるのは **`tasks` が0件のときだけ**。
+第15回までは毎回全件を消して入れ直していた（Issue #34 で修正）。**テストでは走らない**（下記）。
 
 ### 3. フロントエンド（別のターミナルで）
 
@@ -159,14 +160,17 @@ curl.exe -s -X POST http://localhost:8080/api/tasks -H "Content-Type: applicatio
 
 ```powershell
 docker compose up -d --wait     # 先にこれ。JPA が入っているため DB が無いとテストが落ちる
-cd backend; ./gradlew test
+cd backend; ./gradlew check     # Checkstyle + テスト。テストだけなら ./gradlew test
 ```
 
-**テストは `tasks` の中身を消さない**（Issue #20 で対処済み）。
-`src/test/resources/application-test.properties` の `spring.sql.init.mode=never` と
-`@ActiveProfiles("test")` により、テスト時だけ `data.sql` が実行されない。
+**テストは `tasks` の中身を変えない。**
 
-**消えるのは `bootRun` したとき。** 起動とテストで挙動が違う。
+- `src/test/resources/application-test.properties` の `spring.sql.init.mode=never` と
+  `@ActiveProfiles("test")` により、テスト時は `data.sql` が実行されない（Issue #20）
+- `TaskApiTests` は行を書き込むが、`@Transactional` で各テストの終わりに取り消される（Issue #34）。
+  **取り消されないのは id の採番だけ**（テストのたびに次の番号が進む）
+
+**8080 を使わないので、`bootRun` を動かしたままでも実行できる**（MockMvc はサーバーを立てない）。
 
 ## マージの前に必ず止める
 
